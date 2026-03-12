@@ -8,6 +8,9 @@ import { LighthouseAdapter } from "../audits/LighthouseAdapter.js";
 import { ConsoleReporter } from "../reporters/ConsoleReporter.js";
 import { JsonReporter } from "../reporters/JsonReporter.js";
 import { analyzeTraceFile } from "../utils/TraceAnalyzer.js";
+import { FPSMonitor } from "../metrics/FPSMonitor.js";
+import { MemoryProfiler } from "../metrics/MemoryProfiler.js";
+import { JSProfiler } from "../metrics/JSProfiler.js";
 import type {
   CLIOptions,
   TestResult,
@@ -349,6 +352,112 @@ program
       console.error(`\n✖ Error: ${(error as Error).message}`);
       process.exit(1);
     }
+  });
+
+program
+  .command("check")
+  .description("Comprehensive performance check (FPS + Memory + JS + CWV)")
+  .argument("<url>", "URL to test")
+  .option("-o, --output <path>", "Output file path (JSON)")
+  .option("--no-headless", "Run in visible mode")
+  .option("--duration <seconds>", "Monitoring duration", "10")
+  .action(async (url: string, options: CLIOptions) => {
+    const reporter = new ConsoleReporter();
+    const spinner = reporter.printSpinner("Running comprehensive check...");
+
+    try {
+      browserManager = new BrowserManager({
+        browser: { headless: options.headless },
+      });
+      await browserManager.launch();
+      await browserManager.newPage();
+
+      const page = browserManager.getPage()!;
+
+      console.log("\n=== 1. Core Web Vitals ===");
+      const cwvCollector = new CoreWebVitalsCollector(page);
+      await cwvCollector.inject();
+      await browserManager.navigate(url);
+      await cwvCollector.waitForStable(5000);
+      const cwv = await cwvCollector.collect();
+      console.log(`LCP: ${cwv.lcp}ms, CLS: ${cwv.cls}, TTFB: ${cwv.ttfb}ms`);
+
+      console.log("\n=== 2. FPS Monitoring ===");
+      const fpsMonitor = new FPSMonitor(page);
+      await fpsMonitor.inject();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const fps = await fpsMonitor.getFPS();
+      console.log(`FPS: ${fps.fps}, Dropped: ${fps.droppedFrames} frames`);
+
+      console.log("\n=== 3. Memory Analysis ===");
+      const memProfiler = new MemoryProfiler(page);
+      await memProfiler.startProfiling();
+      await memProfiler.takeInitialSnapshot();
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await memProfiler.takeFinalSnapshot();
+      const memResult = await memProfiler.analyzeLeaks();
+      const heapStats = await memProfiler.getHeapStats();
+      console.log(
+        `Heap Used: ${(heapStats.jsHeapUsedSize / 1024 / 1024).toFixed(2)}MB`,
+      );
+      console.log(
+        `Leak Detected: ${memResult.detected} (${memResult.severity})`,
+      );
+      await memProfiler.stopProfiling();
+
+      console.log("\n=== 4. JS Performance ===");
+      const jsProfiler = new JSProfiler(page);
+      await jsProfiler.startProfiling();
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const jsResult = await jsProfiler.stopProfiling();
+      const analysis = jsProfiler.analyzeProfile(jsResult);
+      console.log(`Top function: ${analysis.topFunctions[0]?.name || "N/A"}`);
+
+      spinner();
+
+      const result = {
+        url,
+        timestamp: Date.now(),
+        coreWebVitals: cwv,
+        fps,
+        memory: { ...memResult, heapStats },
+        jsPerformance: analysis,
+      };
+
+      console.log("\n" + "=".repeat(60));
+      console.log("COMPREHENSIVE CHECK RESULTS");
+      console.log("=".repeat(60));
+      console.log(`URL: ${url}`);
+      console.log(`\n📊 Core Web Vitals:`);
+      console.log(`  LCP: ${cwv.lcp}ms ${(cwv.lcp || 0) < 2500 ? "✅" : "❌"}`);
+      console.log(`  CLS: ${cwv.cls} ${(cwv.cls || 0) < 0.1 ? "✅" : "❌"}`);
+      console.log(
+        `  TTFB: ${cwv.ttfb}ms ${(cwv.ttfb || 0) < 800 ? "✅" : "❌"}`,
+      );
+      console.log(
+        `\n🎬 FPS: ${fps.fps} ${fps.fps > 50 ? "✅" : "❌"} (${fps.droppedFrames} dropped)`,
+      );
+      console.log(
+        `\n💾 Memory: ${memResult.severity === "none" ? "✅ OK" : "⚠️ " + memResult.severity}`,
+      );
+      console.log(`\n⚡ JS: ${analysis.topFunctions[0]?.name || "N/A"}`);
+      console.log("=".repeat(60));
+
+      if (options.output) {
+        await writeFile(
+          String(options.output),
+          JSON.stringify(result, null, 2),
+        );
+        console.log(`\nResults saved to ${options.output}`);
+      }
+    } catch (error) {
+      spinner();
+      reporter.printError(error as Error);
+      await cleanup();
+      process.exit(1);
+    }
+
+    await cleanup();
   });
 
 function parseViewport(
