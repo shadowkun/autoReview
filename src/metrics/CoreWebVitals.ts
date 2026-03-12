@@ -99,18 +99,60 @@ export class CoreWebVitalsCollector {
   async collect(): Promise<CoreWebVitals> {
     try {
       const metrics = await this.page.evaluate(() => {
-        if (!window.__CWV__) {
-          return {
-            lcp: null,
-            fid: null,
-            cls: null,
-            inp: null,
-            ttfb: null,
-            fcp: null,
-            tti: null,
-          };
+        const cwv = window.__CWV__ || {
+          lcp: null,
+          fid: null,
+          cls: null,
+          inp: null,
+          ttfb: null,
+          fcp: null,
+          tti: null,
+        };
+
+        if (!cwv.fcp || !cwv.lcp || !cwv.ttfb) {
+          try {
+            const navEntries = (
+              performance as unknown as {
+                getEntriesByType: (
+                  type: string,
+                ) => Array<{ responseStart: number }>;
+              }
+            ).getEntriesByType("navigation");
+            if (navEntries.length > 0) {
+              cwv.ttfb = cwv.ttfb || navEntries[0].responseStart;
+            }
+          } catch (e) {}
+
+          try {
+            const paintEntries = (
+              performance as unknown as {
+                getEntriesByType: (
+                  type: string,
+                ) => Array<{ name: string; startTime: number }>;
+              }
+            ).getEntriesByType("paint");
+            for (let i = 0; i < paintEntries.length; i++) {
+              if (paintEntries[i].name === "first-contentful-paint") {
+                cwv.fcp = cwv.fcp || paintEntries[i].startTime;
+              }
+            }
+          } catch (e) {}
+
+          try {
+            const lcpEntries = (
+              performance as unknown as {
+                getEntriesByType: (
+                  type: string,
+                ) => Array<{ startTime: number }>;
+              }
+            ).getEntriesByType("largest-contentful-paint");
+            if (lcpEntries.length > 0) {
+              cwv.lcp = cwv.lcp || lcpEntries[lcpEntries.length - 1].startTime;
+            }
+          } catch (e) {}
         }
-        return window.__CWV__;
+
+        return cwv;
       });
       return metrics as CoreWebVitals;
     } catch (error) {

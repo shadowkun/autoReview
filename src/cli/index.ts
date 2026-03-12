@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { writeFile } from "fs/promises";
 import { BrowserManager } from "../core/BrowserManager.js";
 import { CoreWebVitalsCollector } from "../metrics/CoreWebVitals.js";
 import { LighthouseAdapter } from "../audits/LighthouseAdapter.js";
 import { ConsoleReporter } from "../reporters/ConsoleReporter.js";
 import { JsonReporter } from "../reporters/JsonReporter.js";
-import type { CLIOptions, TestResult, Config } from "../core/types.js";
+import { analyzeTraceFile } from "../utils/TraceAnalyzer.js";
+import type {
+  CLIOptions,
+  TestResult,
+  Config,
+  NetworkThrottlingPreset,
+} from "../core/types.js";
 
 let browserManager: BrowserManager | null = null;
 
@@ -45,16 +52,46 @@ program
   .option("--no-headless", "Run in visible mode")
   .option("--devtools", "Open DevTools", false)
   .option("--verbose", "Verbose output", false)
+  .option(
+    "--network <preset>",
+    "Network throttling (online, slow-2g, fast-2g, 3g, fast-3g, 4g, offline)",
+  )
+  .option("--cpu <rate>", "CPU throttling rate (1=normal, 4=4x slower)")
+  .option("--viewport <WxH>", "Viewport size (e.g., 1920x1080)")
+  .option("--mobile", "Emulate mobile device")
+  .option(
+    "--wait-until <event>",
+    "Wait until event (load, domcontentloaded, networkidle0, networkidle2)",
+    "networkidle2",
+  )
+  .option("--timeout <ms>", "Navigation timeout in ms", "30000")
   .action(async (url: string, options: CLIOptions) => {
     const reporter = new ConsoleReporter();
     const jsonReporter = new JsonReporter();
     const spinner = reporter.printSpinner("Running performance test...");
 
     try {
+      const viewport = options.viewport
+        ? parseViewport(options.viewport)
+        : undefined;
+
       const config: Partial<Config> = {
         browser: {
           headless: options.headless,
           devtools: options.devtools,
+          viewport:
+            viewport ||
+            (options.mobile
+              ? { width: 375, height: 812, isMobile: true }
+              : undefined),
+        },
+        navigation: {
+          waitUntil: options.waitUntil as
+            | "load"
+            | "domcontentloaded"
+            | "networkidle0"
+            | "networkidle2",
+          timeout: parseInt(String(options.timeout), 10),
         },
         iterations: options.iterations
           ? parseInt(String(options.iterations), 10)
@@ -63,6 +100,21 @@ program
 
       browserManager = new BrowserManager(config);
       await browserManager.launch();
+      await browserManager.newPage();
+
+      if (options.network && options.network !== "online") {
+        console.log(`\nApplying network throttling: ${options.network}`);
+        await browserManager.setNetworkThrottling(
+          options.network as NetworkThrottlingPreset,
+        );
+      }
+
+      if (options.cpu && parseInt(String(options.cpu), 10) > 1) {
+        console.log(`\nApplying CPU throttling: ${options.cpu}x`);
+        await browserManager.setCPUThrottling(
+          parseInt(String(options.cpu), 10),
+        );
+      }
 
       const page = browserManager.getPage()!;
       const cwvCollector = new CoreWebVitalsCollector(page);
@@ -114,16 +166,47 @@ program
   .option("-o, --output <path>", "Output file path (JSON)")
   .option("--no-headless", "Run in visible mode")
   .option("-v, --verbose", "Verbose output", false)
+  .option(
+    "--network <preset>",
+    "Network throttling (online, slow-2g, fast-2g, 3g, fast-3g, 4g, offline)",
+  )
+  .option("--cpu <rate>", "CPU throttling rate")
+  .option("--viewport <WxH>", "Viewport size")
+  .option("--mobile", "Emulate mobile device")
   .action(async (url: string, options: CLIOptions) => {
     const reporter = new ConsoleReporter();
     const jsonReporter = new JsonReporter();
     const spinner = reporter.printSpinner("Measuring Core Web Vitals...");
 
     try {
+      const viewport = options.viewport
+        ? parseViewport(options.viewport)
+        : undefined;
+
       browserManager = new BrowserManager({
-        browser: { headless: options.headless },
+        browser: {
+          headless: options.headless,
+          viewport:
+            viewport ||
+            (options.mobile
+              ? { width: 375, height: 812, isMobile: true }
+              : undefined),
+        },
       });
       await browserManager.launch();
+      await browserManager.newPage();
+
+      if (options.network && options.network !== "online") {
+        await browserManager.setNetworkThrottling(
+          options.network as NetworkThrottlingPreset,
+        );
+      }
+
+      if (options.cpu && parseInt(String(options.cpu), 10) > 1) {
+        await browserManager.setCPUThrottling(
+          parseInt(String(options.cpu), 10),
+        );
+      }
 
       const page = browserManager.getPage()!;
       const cwvCollector = new CoreWebVitalsCollector(page);
@@ -160,5 +243,125 @@ program
 
     await cleanup();
   });
+
+program
+  .command("trace")
+  .description("Capture detailed trace data for Chrome DevTools")
+  .argument("<url>", "URL to test")
+  .option("-o, --output <path>", "Output trace file", "trace.json")
+  .option("--no-headless", "Run in visible mode")
+  .option("--duration <seconds>", "Recording duration", "10")
+  .option("--network <preset>", "Network throttling")
+  .option("--cpu <rate>", "CPU throttling rate")
+  .action(async (url: string, options: CLIOptions) => {
+    const reporter = new ConsoleReporter();
+
+    try {
+      browserManager = new BrowserManager({
+        browser: { headless: options.headless },
+      });
+      await browserManager.launch();
+      await browserManager.newPage();
+
+      if (options.network && options.network !== "online") {
+        await browserManager.setNetworkThrottling(
+          options.network as NetworkThrottlingPreset,
+        );
+      }
+
+      if (options.cpu && parseInt(String(options.cpu), 10) > 1) {
+        await browserManager.setCPUThrottling(
+          parseInt(String(options.cpu), 10),
+        );
+      }
+
+      const page = browserManager.getPage()!;
+      const client = await page.target().createCDPSession();
+
+      const traceEvents: unknown[] = [];
+
+      client.on("Tracing.dataCollected", (params: { value: unknown[] }) => {
+        traceEvents.push(...params.value);
+      });
+
+      console.log("Starting trace recording...");
+      await client.send("Tracing.start", {
+        categories:
+          "-*,devtools.timeline,blink.user_timing,latencyInfo,v8.execute,blink.console",
+      });
+
+      await page.goto(url, { waitUntil: "networkidle2" });
+
+      const duration = parseInt(String(options.duration), 10) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, duration));
+
+      console.log("Stopping trace...");
+      await client.send("Tracing.end");
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const traceData = {
+        traceEvents: traceEvents,
+        metadata: {
+          url: url,
+          timestamp: Date.now(),
+          version: "1.0",
+        },
+      };
+
+      const path = String(options.output);
+      await writeFile(path, JSON.stringify(traceData, null, 2));
+
+      console.log(`\n✓ Trace saved to ${path} (${traceEvents.length} events)`);
+      console.log(
+        "\nOpen Chrome DevTools → Performance tab → Load profile to view flame chart\n",
+      );
+
+      await client.detach();
+    } catch (error) {
+      reporter.printError(error as Error);
+      await cleanup();
+      process.exit(1);
+    }
+
+    await cleanup();
+  });
+
+program
+  .command("analyze")
+  .description("Analyze trace file and generate LLM-friendly report")
+  .argument("<file>", "Path to trace JSON file")
+  .option("-o, --output <path>", "Output file path")
+  .action(async (file: string, options: CLIOptions) => {
+    try {
+      console.log(`Analyzing trace file: ${file}...`);
+      const result = await analyzeTraceFile(file);
+
+      console.log("\n" + "=".repeat(60));
+      console.log(result.summary);
+      console.log("=".repeat(60));
+
+      if (options.output) {
+        await writeFile(options.output, result.summary, "utf-8");
+        console.log(`\nReport saved to ${options.output}`);
+      }
+    } catch (error) {
+      console.error(`\n✖ Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+function parseViewport(
+  str: string,
+): { width: number; height: number } | undefined {
+  const match = str.match(/^(\d+)x(\d+)$/i);
+  if (match) {
+    return {
+      width: parseInt(match[1], 10),
+      height: parseInt(match[2], 10),
+    };
+  }
+  return undefined;
+}
 
 program.parse();

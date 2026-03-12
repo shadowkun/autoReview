@@ -17,7 +17,7 @@ export interface Viewport {
 }
 
 export interface NavigationOptions {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
   timeout?: number;
 }
 
@@ -106,13 +106,20 @@ export interface TestResult {
 export interface CLIOptions {
   url: string;
   output?: string;
-  format?: 'json' | 'html' | 'console';
+  format?: "json" | "html" | "console";
   iterations?: number;
   headless?: boolean;
   devtools?: boolean;
   watch?: boolean;
   config?: string;
   verbose?: boolean;
+  duration?: number;
+  network?: string;
+  cpu?: number;
+  viewport?: string;
+  mobile?: boolean;
+  waitUntil?: string;
+  timeout?: number;
 }
 
 export interface Config {
@@ -120,5 +127,22 @@ export interface Config {
   navigation: NavigationOptions;
   iterations: number;
   timeout: number;
-  networkThrottling?: 'online' | 'offline' | 'slow-2g' | '3g' | '4g' | ' DSL' | 'slow-4g' | 'fast-4g';
+  networkThrottling?: NetworkThrottling;
+  cpuThrottling?: number;
+}
+
+export type NetworkThrottlingPreset =
+  | "online"
+  | "offline"
+  | "slow-2g"
+  | "fast-2g"
+  | "3g"
+  | "fast-3g"
+  | "4g";
+
+export interface NetworkThrottling {
+  offline: boolean;
+  downloadThroughput: number;
+  uploadThroughput: number;
+  latency: number;
 }

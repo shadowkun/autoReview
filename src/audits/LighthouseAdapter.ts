@@ -1,10 +1,10 @@
-import lighthouse from 'lighthouse';
-import type { Browser } from 'puppeteer-core';
-import type { LighthouseReport, AuditResult } from '../core/types.js';
+import lighthouse from "lighthouse";
+import type { Browser } from "puppeteer-core";
+import type { LighthouseReport, AuditResult } from "../core/types.js";
 
 interface LHOptions {
   onlyCategories?: string[];
-  throttlingMethod?: 'simulate' | 'devtools' | 'provided';
+  throttlingMethod?: "simulate" | "devtools" | "provided";
 }
 
 export class LighthouseAdapter {
@@ -14,25 +14,25 @@ export class LighthouseAdapter {
   constructor(browser: Browser, options: LHOptions = {}) {
     this.browser = browser;
     this.options = {
-      onlyCategories: ['performance'],
-      throttlingMethod: 'devtools',
+      onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
+      throttlingMethod: "devtools",
       ...options,
     };
   }
 
   async run(url: string): Promise<LighthouseReport> {
     const port = new URL(this.browser.wsEndpoint()).port;
-    
+
     const result = await lighthouse(url, {
       port: parseInt(port, 10),
-      output: 'json',
+      output: "json",
       onlyCategories: this.options.onlyCategories,
       throttlingMethod: this.options.throttlingMethod,
-      logLevel: 'silent',
+      logLevel: "silent",
     });
 
     if (!result) {
-      throw new Error('Lighthouse failed to generate report');
+      throw new Error("Lighthouse failed to generate report");
     }
 
     const lhr = result.lhr;
@@ -45,18 +45,18 @@ export class LighthouseAdapter {
       timestamp: Date.now(),
       performance: scores.performance || 0,
       accessibility: scores.accessibility || 0,
-      bestPractices: scores['best-practices'] || 0,
+      bestPractices: scores["best-practices"] || 0,
       seo: scores.seo || 0,
       pwa: scores.pwa || 0,
       audits,
       coreWebVitals: {
-        lcp: lhr.audits['largest-contentful-paint']?.numericValue || null,
-        fid: lhr.audits['max-potential-fid']?.numericValue || null,
-        cls: lhr.audits['cumulative-layout-shift']?.numericValue || null,
-        inp: lhr.audits['interaction-to-next-paint']?.numericValue || null,
-        ttfb: lhr.audits['server-response-time']?.numericValue || null,
-        fcp: lhr.audits['first-contentful-paint']?.numericValue || null,
-        tti: lhr.audits['interactive']?.numericValue || null,
+        lcp: lhr.audits["largest-contentful-paint"]?.numericValue || null,
+        fid: lhr.audits["max-potential-fid"]?.numericValue || null,
+        cls: lhr.audits["cumulative-layout-shift"]?.numericValue || null,
+        inp: lhr.audits["interaction-to-next-paint"]?.numericValue || null,
+        ttfb: lhr.audits["server-response-time"]?.numericValue || null,
+        fcp: lhr.audits["first-contentful-paint"]?.numericValue || null,
+        tti: lhr.audits["interactive"]?.numericValue || null,
       },
     };
   }
@@ -64,7 +64,13 @@ export class LighthouseAdapter {
   private parseAudits(audits: Record<string, unknown>): AuditResult[] {
     const results: AuditResult[] = [];
     for (const [id, audit] of Object.entries(audits)) {
-      const a = audit as { id: string; title: string; score: number | null; description: string; details?: Record<string, unknown> };
+      const a = audit as {
+        id: string;
+        title: string;
+        score: number | null;
+        description: string;
+        details?: Record<string, unknown>;
+      };
       if (a.score !== null) {
         results.push({
           id: a.id || id,
@@ -78,7 +84,9 @@ export class LighthouseAdapter {
     return results;
   }
 
-  private parseScores(categories: Record<string, unknown>): Record<string, number> {
+  private parseScores(
+    categories: Record<string, unknown>,
+  ): Record<string, number> {
     const scores: Record<string, number> = {};
     for (const [key, cat] of Object.entries(categories)) {
       const c = cat as { id: string; title: string; score: number | null };
