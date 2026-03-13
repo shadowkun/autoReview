@@ -42,6 +42,9 @@ jobs:
             dist/
             package.json
             package-lock.json
+            README.md
+            README-zh.md
+            LICENSE
 
   publish-npm:
     needs: build
@@ -60,7 +63,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish to NPM
-        run: npm publish --access public
+        run: npm publish --access public --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
