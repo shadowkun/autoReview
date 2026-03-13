@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   build:
@@ -50,9 +49,6 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -67,7 +63,9 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish to NPM
-        run: npm publish --provenance --access public --ignore-scripts
+        run: npm publish --access public --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-github-release:
     needs: build

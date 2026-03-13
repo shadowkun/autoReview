@@ -1,6 +1,6 @@
 {
   "name": "@zhenyk/autoreview",
-  "version": "2.0.1",
+  "version": "2.0.0",
   "description": "Frontend performance testing and analytics CLI tool for AI agents",
   "type": "module",
   "main": "./dist/index.js",
