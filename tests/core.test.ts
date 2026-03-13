@@ -11,8 +11,6 @@ describe("BrowserManager", () => {
     wsEndpoint: vi.fn().mockReturnValue("ws://localhost:9222"),
   };
 
-  const mockLaunch = vi.fn().mockResolvedValue(mockBrowser);
-
   beforeEach(() => {
     vi.resetModules();
   });
