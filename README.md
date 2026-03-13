@@ -92,3 +92,5 @@ Press `Ctrl+C` or `Ctrl+Z` to exit.
 
 - Node.js 18+
 - Google Chrome (or Chromium)
+
+## MIT License
