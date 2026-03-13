@@ -1,24 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 describe("BrowserManager", () => {
-  const mockBrowser = {
-    newPage: vi.fn().mockResolvedValue({
-      setViewport: vi.fn().mockResolvedValue(undefined),
-      goto: vi.fn().mockResolvedValue(undefined),
-      close: vi.fn().mockResolvedValue(undefined),
-    }),
-    close: vi.fn().mockResolvedValue(undefined),
-    wsEndpoint: vi.fn().mockReturnValue("ws://localhost:9222"),
-  };
-
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("should have correct default config", async () => {
     const { BrowserManager } = await import("../src/core/BrowserManager.js");
     const manager = new BrowserManager();
