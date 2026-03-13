@@ -1,5 +1,7 @@
 # AutoReview
 
+[English](./README.md) | [中文](./README-zh.md)
+
 Frontend performance testing and analytics CLI tool for AI agents and developers.
 
 ## Features
