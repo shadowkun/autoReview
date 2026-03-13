@@ -38,12 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-files
-          path: |
-            dist/
-            package.json
-            README.md
-            README-zh.md
-            LICENSE
+          path: dist/
 
   publish-npm:
     needs: build
@@ -79,11 +74,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            dist/**
-            README.md
-            README-zh.md
-            LICENSE
+          files: dist/*
           body: |
             ## 🚀 AutoReview v1.0.0 - 首次发布
 
