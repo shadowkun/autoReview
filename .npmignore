@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test
+tests/
+*.test.ts
+*.spec.ts
+__tests__/
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup
+backup/
+
+# Trace files
+*.trace.json
+
+# Local config
+.env
+.env.local
+.env.*.local

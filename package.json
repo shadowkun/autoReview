@@ -1,14 +1,14 @@
 {
   "name": "autoreview",
   "version": "2.0.0",
-  "description": "Frontend performance testing and analytics CLI tool",
+  "description": "Frontend performance testing and analytics CLI tool for AI agents",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
     "autoreview": "./dist/cli/index.js"
   },
   "scripts": {
-    "postinstall": "node -e \"if(require('puppeteer').executablePath()) {}\" 2>/dev/null || echo 'Chrome download skipped'",
+    "prepublishOnly": "npm run build",
     "build": "tsc",
     "start": "node ./dist/cli/index.js",
     "dev": "tsx watch ./src/cli/index.ts",
@@ -45,8 +45,20 @@
     "web-vitals",
     "lighthouse",
     "frontend",
-    "cli"
+    "cli",
+    "fps",
+    "memory",
+    "profiling",
+    "chrome-devtools"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "shadowkun",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shadowkun/autoReview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shadowkun/autoReview/issues"
+  },
+  "homepage": "https://github.com/shadowkun/autoReview#readme"
 }
