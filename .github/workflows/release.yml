@@ -27,24 +27,33 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Prepare release artifacts
+        run: |
+          # Copy CLI entry point to root for easier access
+          cp dist/cli/index.js dist/auto-review.js
+          # Remove source maps and declaration files
+          rm -f dist/*.map dist/*.d.ts dist/*.d.ts.map
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: release-files
+          path: |
+            dist/
+            package.json
+            README.md
+            README-zh.md
+            LICENSE
 
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: release-files
+          path: .
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,14 +70,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: release-files
+          path: .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
