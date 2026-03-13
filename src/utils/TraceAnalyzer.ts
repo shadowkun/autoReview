@@ -92,7 +92,7 @@ function analyzeTrace(data: TraceData): AnalysisResult {
     stats.events.push(event);
   }
 
-  for (const [_, stats] of eventCounts) {
+  for (const stats of eventCounts.values()) {
     stats.avgDuration = stats.totalDuration / stats.count;
   }
 

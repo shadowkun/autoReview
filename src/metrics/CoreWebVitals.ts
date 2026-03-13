@@ -121,7 +121,9 @@ export class CoreWebVitalsCollector {
             if (navEntries.length > 0) {
               cwv.ttfb = cwv.ttfb || navEntries[0].responseStart;
             }
-          } catch (e) {}
+          } catch {
+            void 0;
+          }
 
           try {
             const paintEntries = (
@@ -136,7 +138,9 @@ export class CoreWebVitalsCollector {
                 cwv.fcp = cwv.fcp || paintEntries[i].startTime;
               }
             }
-          } catch (e) {}
+          } catch {
+            void 0;
+          }
 
           try {
             const lcpEntries = (
@@ -149,7 +153,9 @@ export class CoreWebVitalsCollector {
             if (lcpEntries.length > 0) {
               cwv.lcp = cwv.lcp || lcpEntries[lcpEntries.length - 1].startTime;
             }
-          } catch (e) {}
+          } catch {
+            void 0;
+          }
         }
 
         return cwv;
