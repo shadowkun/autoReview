@@ -16,11 +16,19 @@ Frontend performance testing and analytics CLI tool for AI agents and developers
 
 ## Quick Start
 
-```bash
-# Install dependencies
-npm install
+### NPM Installation (Recommended)
 
-# Build TypeScript
+```bash
+npm install -g @zhenyk/autoreview
+
+# Then use the CLI directly
+autoreview check https://example.com
+```
+
+### Source Code Installation
+
+```bash
+npm install
 npm run build
 
 # Run comprehensive check
