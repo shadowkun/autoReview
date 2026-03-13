@@ -22,12 +22,12 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci
 
       - name: Build
         run: npm run build
 
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -70,12 +70,6 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Download source
-        uses: actions/download-artifact@v4
-        with:
-          name: source
-          path: .
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -84,7 +78,46 @@ jobs:
             README.md
             README-zh.md
             LICENSE
-          generate_release_notes: true
+          body: |
+            ## 🚀 AutoReview v1.0.0 - 首次发布
+
+            Frontend 性能测试和分析 CLI 工具，专为 AI Agent 和开发者设计。
+
+            ### 主要功能
+
+            - **Core Web Vitals** - LCP, FID, CLS, INP, TTFB 测量
+            - **FPS 监控** - 实时帧率和卡顿检测
+            - **内存分析** - 堆快照和内存泄漏检测
+            - **JS 性能** - CPU 性能分析和函数执行分析
+            - **Lighthouse 集成** - 全面的性能审计
+            - **Trace 分析** - Chrome DevTools trace 文件分析和问题检测
+            - **AI 友好输出** - JSON 格式优化，便于 LLM 分析
+
+            ### 快速开始
+
+            ```bash
+            # 安装
+            npm install
+
+            # 构建
+            npm run build
+
+            # 运行全面检查
+            node ./dist/cli/index.js check https://example.com
+            ```
+
+            ### 输出目录
+
+            默认输出目录: `tests/`
+
+            ```bash
+            # 保存结果
+            node ./dist/cli/index.js check https://example.com -o tests/result.json
+            ```
+
+            ### 更多信息
+
+            详见 [README.md](./README.md)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

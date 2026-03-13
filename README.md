@@ -193,6 +193,12 @@ Use `--no-headless` to see browser errors, or try `--network online`.
 - Node.js 18+
 - Google Chrome / Chromium installed
 
+## Releases
+
+| Version                                                           | Date       | Description                                                                                                        |
+| ----------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| [v1.0.0](https://github.com/shadowkun/autoReview/releases/v1.0.0) | 2026-03-13 | 🎉 Initial release - Core Web Vitals, FPS monitoring, memory profiling, Lighthouse integration, and trace analysis |
+
 ## License
 
 MIT License - See [LICENSE](LICENSE)
